@@ -61,7 +61,8 @@ output_dir="$HOME/tor_scan_logs"
 mkdir -p "$output_dir"
 
 output_file="$output_dir/scan_$timestamp"
-ua_string="Mozilla/5.0 (KaliGPT/NmapStealth)"
+ua_string="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
 
 # Function: Generate decoys
 generate_decoys() {
