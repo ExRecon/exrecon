@@ -1,0 +1,29 @@
+# Ignore scan logs and reports
+*.txt
+*.pdf
+*.delta
+scan_*
+scan_summary_*
+
+# Ignore output directory
+/tor_scan_logs/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Editor backup and swap files
+*.swp
+*.swo
+*.bak
+*~
+
+# Python cache (if extended)
+__pycache__/
+*.pyc
+*.pyo
+
+# Shell history or temp
+*.log
+*.tmp
+.cache/
