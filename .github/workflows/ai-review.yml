@@ -1,8 +1,4 @@
-- name: Get PR diff
-  run: |
-    git diff ${{ github.event.pull_request.base.sha }} \
-             ${{ github.event.pull_request.head.sha }} \
-             > diff.txt
+name: AI Code Review
 
 on:
   pull_request:
@@ -13,17 +9,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Fetch base branch
-        run: git fetch origin ${{ github.base_ref }}
-
-      - name: Get diff
+      - name: Get PR diff
         run: |
-          git diff origin/${{ github.base_ref }} > diff.txt
+          git diff ${{ github.event.pull_request.base.sha }} \
+                   ${{ github.event.pull_request.head.sha }} \
+                   > diff.txt
 
       - name: Run AI Review
         run: python ai_reviewer.py
