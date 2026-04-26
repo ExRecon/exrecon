@@ -33,7 +33,12 @@ fi
 
 # === Begin ExRecon ===
 echo "=== ExRecon : Ultimate TOR Nmap Automation ==="
-read -p "Target Domain/IP: " target
+read -rp "Target Domain/IP: " target
+if [[ ! "$target" =~ ^[a-zA-Z0-9._:-]+$ ]]; then
+  echo "[!] Invalid target format. Aborting."
+  exit 1
+fi
+
 
 echo "Select scan types (comma-separated, e.g., 1,3,5):"
 echo "1) TOR Quick Scan"
