@@ -1,0 +1,23 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get changed files
+        id: changes
+        run: |
+          git diff origin/main > diff.txt
+
+      - name: Run AI Review
+        run: python ai_reviewer.py
+
+      - name: Post Comment
+        run: python post_comment.py
