@@ -71,7 +71,8 @@ check_nikto() {
 
 # Function: Check if decoy is supported
 check_decoy_supported() {
-  if ! nmap --help | grep -q "\-D"; then
+  if ! nmap --help 2>&1 | grep -q -- "-D"; then
+
     return 1
   fi
   return 0
