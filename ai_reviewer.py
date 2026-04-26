@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 
 with open("diff.txt", "r") as f:
     diff = f.read()
