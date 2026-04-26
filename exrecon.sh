@@ -147,7 +147,11 @@ for scan_type in "${selected_scans[@]}"; do
         --dns-servers 8.8.8.8 -oN "$output_file.service" "$target"
       ;;
     3)
+      echo "[!] WARNING: TOR is TCP-only. UDP scan may leak your real IP."
+      read -rp "Continue anyway? (y/n): " udp_confirm
+      [[ "$udp_confirm" != "y" ]] && continue
       echo "[*] Running UDP Vuln Scan..."
+
       proxychains4 nmap -sU -sV -Pn --script vuln --data-length 120 $use_decoy -f \
         -T2 -oN "$output_file.udp" "$target"
       ;;
@@ -176,6 +180,9 @@ for scan_type in "${selected_scans[@]}"; do
       fi
       ;;
     8)
+      echo "[!] WARNING: SYN scans require raw sockets and may not route through TOR correctly."
+      read -rp "Continue anyway? (y/n): " syn_confirm
+      [[ "$syn_confirm" != "y" ]] && continue
       echo "[*] Running Stealth SYN Scan..."
       proxychains4 nmap -sS -Pn -T1 -n --top-ports 100 --reason --data-length 60 $use_decoy -f \
         --dns-servers 8.8.8.8 -oN "$output_file.stealth" "$target"
