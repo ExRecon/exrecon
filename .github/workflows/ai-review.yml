@@ -1,4 +1,7 @@
-name: AI Code Review
+- name: Get diff
+  run: |
+    git fetch origin ${{ github.base_ref }}
+    git diff origin/${{ github.base_ref }} > diff.txt
 
 on:
   pull_request:
