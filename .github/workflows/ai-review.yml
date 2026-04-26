@@ -8,19 +8,22 @@ jobs:
   review:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+steps:
+  - uses: actions/checkout@v3
+    with:
+      fetch-depth: 0
 
-      - name: Get PR diff
-        run: |
-          git diff ${{ github.event.pull_request.base.sha }} \
-                   ${{ github.event.pull_request.head.sha }} \
-                   > diff.txt
+  - name: Install dependencies
+    run: pip install -r requirements.txt
 
-      - name: Run AI Review
-        run: python ai_reviewer.py
+  - name: Get PR diff
+    run: |
+      git diff ${{ github.event.pull_request.base.sha }} \
+               ${{ github.event.pull_request.head.sha }} \
+               > diff.txt
 
-      - name: Post Comment
-        run: python post_comment.py
+  - name: Run AI Review
+    run: python ai_reviewer.py
+
+  - name: Post Comment
+    run: python post_comment.py
