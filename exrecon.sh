@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 
 # === Dependency Check and Install ===
 echo "[+] Checking for required dependencies..."
