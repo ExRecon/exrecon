@@ -1,38 +1,51 @@
-🤝 Contributing to ExRecon
-Thank you for your interest in contributing to ExRecon! We welcome improvements, bug fixes, feature requests, and community feedback.
+# Contributing to ExRecon 🛡️
 
-🛠️ How to Contribute
-Fork the repository
-Clone your fork locally:
-git clone https://github.com/ExRecon/exrecon.git
+First off, thank you for considering contributing to **ExRecon**! Community involvement is what keeps this stealth reconnaissance framework robust, updated, and effective for security professionals worldwide.
 
-Create a feature branch:
-git checkout -b feature/your-feature-name
-Make your changes
+As an open-source security tool designed for automated Nmap/Nikto scans and TOR-integrated evasion, we maintain high standards for code integrity and operational security (OPSEC).
 
-Commit and push:
-git commit -m "Add: Brief description of your changes"
-git push origin feature/your-feature-name
+---
 
-Open a Pull Request and describe your change clearly
+### 🚀 How You Can Contribute
 
-🔍 What You Can Help With
-Fix bugs or typos in scripts and docs
-Add new scan modules or evasion tactics
-Improve logging, reporting, or result formatting
-Suggest improvements to the installation process
+We are looking for contributions in the following key areas:
+* **Module Development:** Adding new scanning engines or integrating third-party tools (e.g., Amass, Nuclei, Subfinder).
+* **Evasion Techniques:** Improving TOR/Proxychains integration and advanced WAF bypass logic.
+* **Bug Reports:** Identifying edge cases where scans fail, circuits leak, or dependencies conflict.
+* **Documentation:** Improving the README, Wiki, or adding "Advanced Usage" guides for complex network environments.
+* **Feature Requests:** Suggesting new ways to make reconnaissance faster, lighter, and more stealthy.
 
-🧼 Code Standards
-Use shellcheck-friendly, POSIX-compliant Bash
-Ensure code is readable, modular, and commented
-Validate with shellcheck exrecon.sh before submitting
-Avoid hardcoded paths and prefer variables
+---
 
-💬 Communication
-Use GitHub Issues for bug reports and feature requests
-Join discussions for roadmap ideas or brainstorming
-Respect the Code of Conduct
+### 🛠️ Development Workflow
 
-🔐 Legal Notice
-Ensure your contributions align with ethical guidelines and are not intended for unauthorized or illegal activity. All PRs are reviewed for compliance and quality.
+1.  **Fork & Clone:** Fork the repository and create your feature branch.
+    ```bash
+    git checkout -b feature/YourAmazingFeature
+    ```
+2.  **Code Standards:** * **Linting:** Ensure all Bash scripts are linted (we recommend using `shellcheck`).
+    * **Modularity:** Maintain the modular architecture to ensure the core engine remains lightweight.
+    * **Documentation:** Comment your code clearly, especially where complex `iptables` or specific `nmap` flags are utilized.
+3.  **Security First:** Never hardcode credentials, personal API keys, or sensitive local paths in your contributions. 
+4.  **Submit a Pull Request (PR):** Describe your changes in detail. Explain the functional benefit (e.g., "Reduces detection rate by X%" or "Automates dependency resolution for Arch Linux").
 
+---
+
+### 🐛 Reporting Bugs & Security Issues
+
+* **Standard Bugs:** Please use the [GitHub Issue Tracker](https://github.com/ExRecon/exrecon/issues). Include your OS version (e.g., Kali 2024.x), dependency versions, and the specific command that triggered the error.
+* **Security Vulnerabilities:** If you find a security flaw within ExRecon itself, please do not open a public issue. Instead, contact the maintainers directly to ensure a coordinated disclosure.
+
+---
+
+### ⚖️ Code of Conduct
+
+We are committed to fostering an open and welcoming environment. By participating in this project, you agree to abide by professional standards, treating all contributors with respect and focusing on constructive technical feedback.
+
+---
+
+### 🌟 Why Join the ExRecon Team?
+
+By contributing to ExRecon, you are building a tool designed for the **Bug Bounty** and **Pentesting** communities. Contributors are credited in the `Contributors` section and in official release notes for major versions.
+
+**Let’s build the future of stealth reconnaissance together.**
