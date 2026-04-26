@@ -1,4 +1,8 @@
-name: AI Code Review
+- name: Get PR diff
+  run: |
+    git diff ${{ github.event.pull_request.base.sha }} \
+             ${{ github.event.pull_request.head.sha }} \
+             > diff.txt
 
 on:
   pull_request:
