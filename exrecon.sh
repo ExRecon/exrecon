@@ -172,7 +172,7 @@ for scan_type in "${selected_scans[@]}"; do
       ;;
     6)
       echo "[*] Running Firewall Evasion Scan..."
-      proxychains4 nmap -sT -Pn -T2 --spoof-mac 0 --ttl 65 --reason --data-length 80 $use_decoy -f \
+      proxychains4 nmap -sT -Pn -T2 --ttl 65 --reason --data-length 80 $use_decoy -f \
         --dns-servers 1.1.1.1 -oN "$output_file.evasion" "$target"
       ;;
     7)
