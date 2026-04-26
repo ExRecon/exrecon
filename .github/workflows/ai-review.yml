@@ -1,7 +1,4 @@
-- name: Get diff
-  run: |
-    git fetch origin ${{ github.base_ref }}
-    git diff origin/${{ github.base_ref }} > diff.txt
+name: AI Code Review
 
 on:
   pull_request:
@@ -12,12 +9,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Get changed files
-        id: changes
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Get diff
         run: |
-          git diff origin/main > diff.txt
+          git diff origin/${{ github.base_ref }} > diff.txt
 
       - name: Run AI Review
         run: python ai_reviewer.py
