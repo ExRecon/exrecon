@@ -3,6 +3,7 @@ set -euo pipefail
 if [[ $EUID -ne 0 ]]; then
   echo "[!] Warning: Not running as root. SYN scans and MAC spoofing will not work."
 fi
+trap 'echo -e "\n[!] Interrupted. Partial results may exist in $output_dir"; exit 1' INT TERM
 
 
 # === Dependency Check and Install ===
