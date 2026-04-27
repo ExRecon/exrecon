@@ -5,6 +5,7 @@ on:
     types: [opened, edited, reopened]
   pull_request:
     types: [opened, edited, reopened, synchronize]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +16,11 @@ jobs:
   summarize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    concurrency:
+      group: ai-maintainer-summary-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+      cancel-in-progress: true
 
     steps:
       - name: Check out repository
@@ -26,6 +32,7 @@ jobs:
           python-version: '3.11'
 
       - name: Generate and post AI summary
+        id: generate_summary
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -33,4 +40,14 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: python .github/scripts/ai_maintainer.py
+
+      - name: Add failure guidance
+        if: failure() && steps.generate_summary.outcome == 'failure'
+        run: |
+          echo "## AI Maintainer Summary Failure" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Check the 'Generate and post AI summary' step logs." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Verify OPENAI_API_KEY is configured and valid." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Confirm the workflow still has permission to write issue/PR comments." >> "$GITHUB_STEP_SUMMARY"

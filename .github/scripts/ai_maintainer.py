@@ -14,11 +14,25 @@ COMMENT_MARKER = "<!-- ai-maintainer-summary -->"
 DEFAULT_MODEL = "gpt-5.4-mini"
 MAX_BODY_CHARS = 12000
 MAX_PATCH_CHARS = 12000
+REQUEST_TIMEOUT_SECONDS = 45
+STEP_SUMMARY_LIMIT = 1500
 
 
 def read_json(path: str) -> dict[str, Any]:
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def log(level: str, message: str) -> None:
+    print(f"[{level}] {message}")
+
+
+def write_step_summary(text: str) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    with open(summary_path, "a", encoding="utf-8") as fh:
+        fh.write(text.rstrip() + "\n")
 
 
 def request_json(
@@ -35,7 +49,7 @@ def request_json(
     for key, value in (headers or {}).items():
         req.add_header(key, value)
 
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
         charset = resp.headers.get_content_charset() or "utf-8"
         text = resp.read().decode(charset)
         return json.loads(text) if text else None
@@ -69,6 +83,87 @@ def fetch_pr_files(repo: str, number: int) -> list[dict[str, Any]]:
     api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     url = f"{api_url}/repos/{repo}/pulls/{number}/files?per_page=100"
     return request_json(url, headers=github_headers())
+
+
+def extract_labels(payload: dict[str, Any], is_pr: bool) -> list[str]:
+    item = payload["pull_request"] if is_pr else payload["issue"]
+    return [label["name"].strip().lower() for label in item.get("labels", [])]
+
+
+def detect_issue_style(labels: list[str], title: str, body: str) -> tuple[str, str]:
+    combined = f"{title}\n{body}".lower()
+    if any(label in labels for label in ("bug", "defect", "regression")):
+        return (
+            "bug",
+            "Treat this as a likely defect report. Focus on observed behavior, suspected scope, and debugging next steps.",
+        )
+    if any(label in labels for label in ("feature", "enhancement")):
+        return (
+            "feature",
+            "Treat this as a feature request. Focus on user value, implementation surface area, and open product or design questions.",
+        )
+    if any(label in labels for label in ("documentation", "docs")):
+        return (
+            "docs",
+            "Treat this as documentation work. Focus on missing clarity, affected docs surface, and the smallest useful documentation change.",
+        )
+    if any(label in labels for label in ("question", "support")):
+        return (
+            "question",
+            "Treat this as a question or support request. Focus on what information is missing and the shortest path to unblock the reporter.",
+        )
+    if any(label in labels for label in ("maintenance", "chore")):
+        return (
+            "maintenance",
+            "Treat this as maintenance work. Focus on operational cleanup, repo hygiene, or tooling implications.",
+        )
+    if "feature" in combined or "request" in combined:
+        return (
+            "feature",
+            "Infer that this is a feature request. Focus on user value, likely implementation scope, and unresolved decisions.",
+        )
+    if "bug" in combined or "error" in combined or "broken" in combined:
+        return (
+            "bug",
+            "Infer that this is a bug report. Focus on symptoms, likely impact, and debugging next steps.",
+        )
+    return (
+        "general",
+        "Treat this as a general repository issue. Focus on the clearest maintainer action and any missing details.",
+    )
+
+
+def detect_pr_style(labels: list[str], title: str, body: str) -> tuple[str, str]:
+    combined = f"{title}\n{body}".lower()
+    if any(label in labels for label in ("bug", "fix", "regression")):
+        return (
+            "bugfix",
+            "Treat this as a bug-fix pull request. Focus on the behavior being corrected, regression risk, and validation gaps.",
+        )
+    if any(label in labels for label in ("feature", "enhancement")):
+        return (
+            "feature",
+            "Treat this as a feature pull request. Focus on new capability, touched areas, rollout risk, and testing coverage.",
+        )
+    if any(label in labels for label in ("documentation", "docs")):
+        return (
+            "docs",
+            "Treat this as a documentation pull request. Focus on what guidance changed and whether any docs surface may still be missing.",
+        )
+    if any(label in labels for label in ("maintenance", "chore", "dependencies")):
+        return (
+            "maintenance",
+            "Treat this as maintenance work. Focus on operational impact, dependency or tooling changes, and residual upkeep tasks.",
+        )
+    if "readme" in combined or "docs" in combined or "documentation" in combined:
+        return (
+            "docs",
+            "Infer this is documentation-heavy work. Focus on what guidance changed and whether the scope stays docs-only.",
+        )
+    return (
+        "general",
+        "Treat this as a general pull request. Focus on changed areas, risk, and the most important follow-up checks.",
+    )
 
 
 def build_issue_prompt(payload: dict[str, Any], repo: str) -> str:
@@ -124,23 +219,45 @@ def extract_output_text(response: dict[str, Any]) -> str:
     return "\n".join(part.strip() for part in parts if part.strip()).strip()
 
 
-def generate_summary(context: str, is_pr: bool) -> str:
+def build_issue_task(payload: dict[str, Any]) -> tuple[str, str]:
+    issue = payload["issue"]
+    labels = extract_labels(payload, is_pr=False)
+    style, guidance = detect_issue_style(labels, issue["title"], issue.get("body", ""))
+    task = (
+        "Summarize this issue for maintainers in concise technical Markdown. "
+        "Use these exact headings: Summary, Impact, Follow-ups. "
+        "Under Summary, include one bullet that starts with 'Type:'. "
+        "Prefer 2-3 bullets per section, avoid filler, and keep the total under 140 words. "
+        "Call out missing information only if it meaningfully blocks action. "
+        f"{guidance}"
+    )
+    return style, task
+
+
+def build_pr_task(payload: dict[str, Any]) -> tuple[str, str]:
+    pr = payload["pull_request"]
+    labels = extract_labels(payload, is_pr=True)
+    style, guidance = detect_pr_style(labels, pr["title"], pr.get("body", ""))
+    task = (
+        "Summarize this pull request for maintainers in concise technical Markdown. "
+        "Use these exact headings: Summary, Impact, Follow-ups. "
+        "Under Summary, name the primary changed area or file group. "
+        "Keep each section short, prefer direct engineering language, and keep the total under 140 words. "
+        "Mention testing gaps or regression risk only when they are plausible from the diff context. "
+        f"{guidance}"
+    )
+    return style, task
+
+
+def generate_summary(context: str, task: str, style: str, is_pr: bool) -> str:
     model = os.environ.get("OPENAI_MODEL") or DEFAULT_MODEL
     guidance = (
-        "You are a GitHub maintainer assistant. Produce a short Markdown summary for a repository owner. "
-        "Do not provide exploit steps, payloads, or offensive tactics. Keep security advice defensive and high level."
+        "You are a GitHub maintainer assistant. Produce concise technical Markdown for a repository owner. "
+        "Optimize for fast triage, not general prose. "
+        "Do not provide exploit steps, payloads, or offensive tactics. "
+        "Keep any security advice defensive and high level."
     )
-    if is_pr:
-        task = (
-            "Summarize this pull request for maintainers. Use these exact sections: Summary, Impact, Follow-ups. "
-            "Mention risk areas and testing gaps when relevant. Keep it under 180 words."
-        )
-    else:
-        task = (
-            "Summarize this issue for maintainers. Use these exact sections: Summary, Impact, Follow-ups. "
-            "Call out the likely category (bug, feature, question, docs, or maintenance) and the next best action. "
-            "Keep it under 180 words."
-        )
+    log("INFO", f"Generating {'PR' if is_pr else 'issue'} summary with style '{style}' using model '{model}'.")
 
     payload = {
         "model": model,
@@ -165,7 +282,7 @@ def generate_summary(context: str, is_pr: bool) -> str:
     for key, value in openai_headers().items():
         req.add_header(key, value)
 
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
         response = json.loads(resp.read().decode("utf-8"))
 
     text = extract_output_text(response)
@@ -198,27 +315,45 @@ def upsert_comment(repo: str, number: int, body: str) -> None:
         print(f"Created summary comment for item #{number}")
 
 
+def format_failure_message(item_number: int, is_pr: bool, exc: Exception) -> str:
+    item_type = "pull request" if is_pr else "issue"
+    return (
+        f"AI maintainer summary failed for {item_type} #{item_number}: {exc}\n"
+        "Check the workflow logs for the failing API call or GitHub comment step."
+    )
+
+
 def main() -> int:
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY is not configured; skipping AI summary.")
+        log("WARNING", "OPENAI_API_KEY is not configured; skipping AI summary.")
+        write_step_summary("## AI Maintainer Summary\n\nSkipped: `OPENAI_API_KEY` is not configured.")
         return 0
 
     repo = os.environ["GITHUB_REPOSITORY"]
     payload = read_json(os.environ["GITHUB_EVENT_PATH"])
     is_pr = "pull_request" in payload
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "unknown")
+    log("INFO", f"Handling GitHub event '{event_name}' for repository '{repo}'.")
 
     if is_pr:
-        number = payload["pull_request"]["number"]
+        pr = payload["pull_request"]
+        number = pr["number"]
+        log("INFO", f"Preparing PR #{number}: {pr['title']}")
         context = build_pr_prompt(payload, repo)
+        style, task = build_pr_task(payload)
     elif "issue" in payload:
-        number = payload["issue"]["number"]
+        issue = payload["issue"]
+        number = issue["number"]
+        log("INFO", f"Preparing issue #{number}: {issue['title']}")
         context = build_issue_prompt(payload, repo)
+        style, task = build_issue_task(payload)
     else:
-        print("Unsupported event payload; nothing to do.")
+        log("WARNING", "Unsupported event payload; nothing to do.")
+        write_step_summary("## AI Maintainer Summary\n\nSkipped: unsupported event payload.")
         return 0
 
     try:
-        summary = generate_summary(context, is_pr=is_pr)
+        summary = generate_summary(context, task=task, style=style, is_pr=is_pr)
         comment_body = (
             f"{COMMENT_MARKER}\n"
             "## AI Maintainer Summary\n\n"
@@ -226,13 +361,36 @@ def main() -> int:
             f"_Generated with `{os.environ.get('OPENAI_MODEL') or DEFAULT_MODEL}` via the OpenAI Responses API._"
         )
         upsert_comment(repo, number, comment_body)
+        write_step_summary(
+            "## AI Maintainer Summary\n\n"
+            f"- Event: `{event_name}`\n"
+            f"- Item: `#{number}`\n"
+            f"- Style: `{style}`\n"
+            f"- Model: `{os.environ.get('OPENAI_MODEL') or DEFAULT_MODEL}`\n\n"
+            "### Generated summary preview\n\n"
+            f"{clip(summary, STEP_SUMMARY_LIMIT)}"
+        )
         return 0
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        print(f"HTTP error: {exc.code} {detail}", file=sys.stderr)
+        error_message = f"HTTP error during AI summary generation: {exc.code} {detail}"
+        print(error_message, file=sys.stderr)
+        write_step_summary(
+            "## AI Maintainer Summary Failure\n\n"
+            f"- Event: `{event_name}`\n"
+            f"- Item: `#{number}`\n"
+            f"- Reason: `{clip(error_message, STEP_SUMMARY_LIMIT)}`"
+        )
         return 1
     except Exception as exc:
-        print(f"Failed to generate summary: {exc}", file=sys.stderr)
+        error_message = format_failure_message(number, is_pr, exc)
+        print(error_message, file=sys.stderr)
+        write_step_summary(
+            "## AI Maintainer Summary Failure\n\n"
+            f"- Event: `{event_name}`\n"
+            f"- Item: `#{number}`\n"
+            f"- Reason: `{clip(str(exc), STEP_SUMMARY_LIMIT)}`"
+        )
         return 1
 
 
