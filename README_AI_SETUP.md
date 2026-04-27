@@ -29,3 +29,5 @@ The comment includes:
 - `Follow-ups`
 
 It also avoids giving offensive or exploit guidance and keeps security advice defensive and high-level.
+
+Test note: this line exists only to verify the PR summary workflow path.
