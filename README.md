@@ -125,4 +125,4 @@ The workflow posts one updatable comment with:
 
 **ExRecon** developed by **ExRecon** as part of Offensive Security tooling — *for the Greater Good*. ❤️‍🔥
 
-> "Master Kali Linux, Excel in Offensive Security"
+
