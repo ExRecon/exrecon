@@ -107,11 +107,6 @@ This repository can use an optional GitHub Actions workflow to summarize new or 
 
 - Workflow: `.github/workflows/ai-maintainer-summary.yml`
 - Script: `.github/scripts/ai_maintainer.py`
-- Setup guide: `README_AI_SETUP.md`
-
-To enable it, add the repository secret `OPENAI_API_KEY`.
-
-You can also optionally add the repository variable `OPENAI_MODEL`. If it is not set, the workflow uses `gpt-5.4-mini`.
 
 The workflow posts one updatable comment with:
 
